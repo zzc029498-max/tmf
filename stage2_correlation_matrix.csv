@@ -1,0 +1,7 @@
+,NumImages,ContextTokens,GeneratedTokens,latency_est,carbon_est,gpu_compute_est
+NumImages,1.0,0.8754,-0.0475,0.9992,0.9992,0.9992
+ContextTokens,0.8754,1.0,0.0114,0.8943,0.8943,0.8943
+GeneratedTokens,-0.0475,0.0114,1.0,-0.0396,-0.0396,-0.0396
+latency_est,0.9992,0.8943,-0.0396,1.0,1.0,1.0
+carbon_est,0.9992,0.8943,-0.0396,1.0,1.0,1.0
+gpu_compute_est,0.9992,0.8943,-0.0396,1.0,1.0,1.0
