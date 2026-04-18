@@ -1,0 +1,3 @@
+policy,avg_total_latency_s,p99_total_latency_s,total_carbon_kg,avg_ftl_s
+FCFS,1591291.836008,4036065.569272,36.524903,1591291.770616
+Modality-Aware Priority,356640.245778,3976676.56626,36.524903,356640.180386

@@ -1,0 +1,7 @@
+policy,request_type,avg_ftl_s,avg_wait_time_s,requests
+FCFS,Text-only,1571082.791695,1571082.262517,489817
+FCFS,Light multimodal,1542572.066494,1542571.198328,328709
+FCFS,Heavy multimodal,1752647.87721,1752622.632949,160597
+Modality-Aware Priority,Text-only,10.515923,9.986746,489817
+Modality-Aware Priority,Light multimodal,70320.970401,70320.102235,328709
+Modality-Aware Priority,Heavy multimodal,2030388.591336,2030363.347074,160597
