@@ -1,77 +1,148 @@
-# TFM: Lightweight Low-Latency Green LMM Inference Optimization for SME Clusters
-**Master's Final Thesis (TFM)** | Universitat Rovira i Virgili (URV)
-**Author**: Yutang Jiang
-**Supervisor**: Prof. Pedro
-**Current Progress**: ✅ Stage 1 & 2 Completed | ⏳ Stage 3 In Preparation
 
----
+Master's Final Thesis (TFM) repository at Universitat Rovira i Virgili (URV)
 
-## 1. Project Overview
-This repository contains all the code, data, and analysis results for my TFM thesis. The research focuses on addressing the core pain points of multimodal large language model (LMM) inference in resource-constrained small and medium-sized enterprise (SME) clusters.
+- Author: Yutang Jiang
+- Research focus: low-latency and low-carbon multimodal LMM inference for SME-scale GPU clusters
+- Current repository status: Stage 1, Stage 2, and Stage 3 analytical evaluation completed
 
-The core goal is to design a lightweight, zero-intrusion modality-aware scheduling framework to reduce end-to-end inference latency, tail latency, and carbon footprint of LMM inference, without modifying the model kernel or underlying hardware.
+## Project Summary
 
----
+This repository contains the analysis pipeline, intermediate datasets, figures, and evaluation outputs for a thesis on lightweight scheduling optimization for multimodal large language model (LMM) inference.
 
-## 2. Completed Work & Progress
-### ✅ Stage 1: Dataset Preprocessing & Workload Characterization
-- Completed rigorous cleaning of the public Azure LMM Inference Trace dataset, retaining **979,123 valid requests with a 97.91% data retention rate**;
-- Completed full workload characterization, including modal proportion, context token length distribution, image count distribution, and hourly traffic trend analysis.
+The core thesis argument is that heterogeneous multimodal workloads create severe queueing inefficiency in resource-constrained SME deployments. A lightweight scheduler that distinguishes request modality can substantially improve user-facing latency for short requests without modifying model kernels or hardware.
 
-### ✅ Stage 2: Root Cause Analysis of Latency & Carbon Footprint
-- Established a citable end-to-end quantitative model to estimate per-request inference latency, GPU energy consumption, and carbon footprint, based on official NVIDIA A10 hardware specifications and 2026 Spanish grid carbon intensity data;
-- Quantified the core heterogeneous gap: multimodal requests have a **14.8x higher average latency and carbon footprint** than text-only requests, contributing 93.7% of total emissions despite accounting for only 50% of total traffic;
-- Identified the dominant bottleneck: the number of images in a request has a **near-perfect 0.9992 positive correlation** with latency and carbon emissions;
-- Defined the key limitations of state-of-the-art inference frameworks (e.g., vLLM) in SME scenarios, and derived clear optimization directions for the scheduling framework.
+## Research Workflow
 
-### ⏳ Upcoming Stage 3: Scheduling Framework Design & Evaluation
-- Design the lightweight modality-aware priority scheduling scheme;
-- Validate the optimization effect via trace-driven simulation or analytical formula-based quantification;
-- Complete the thesis writing and final revision.
+### Stage 1. Trace Cleaning and Workload Characterization
 
----
+`stage1.py` preprocesses the Azure multimodal inference trace, removes invalid and extreme requests, derives request-level features, and generates the basic workload characterization figures.
 
-## 3. Repository File Description
-### Core Analysis Code
-| File Name | Description |
-|-----------|-------------|
-| `stage1.py` | Stage 1 code: dataset cleaning, preprocessing, and preliminary workload characterization |
-| `stage2step1.py` | Stage 2 code: end-to-end latency, energy consumption, and carbon footprint quantification |
-| `stage2step2.py` | Stage 2 code: Pearson correlation analysis and root cause identification |
+Key outputs:
 
-### Dataset Files
-| File Name | Description |
-|-----------|-------------|
-| `azure_lmm_trace_clean.csv.gz` | Cleaned raw Azure LMM Inference Trace dataset |
-| `azure_lmm_trace_enhanced.csv.gz` | Enhanced dataset with calculated latency, energy, and carbon footprint per request |
+- `azure_lmm_trace_clean.csv.gz`
+- `01_modal_proportion.png`
+- `02_context_tokens_dist.png`
+- `03_num_images_dist.png`
+- `04_hourly_traffic.png`
 
-### Visualization Figures
-| File Name | Description |
-|-----------|-------------|
-| `01_modal_proportion.png` | Distribution of text-only and multimodal requests |
-| `02_context_tokens_dist.png` | Input context token length distribution across all requests |
-| `03_num_images_dist.png` | Image count distribution for multimodal requests |
-| `04_hourly_traffic.png` | Hourly request arrival rate trend over the trace period |
-| `stage2_modal_carbon_boxplot.png` | Carbon footprint comparison between text-only and multimodal requests |
-| `stage2_correlation_heatmap.png` | Correlation heatmap of core workload features, latency, and carbon footprint |
+Main observations:
 
-### Statistical Result Tables
-| File Name | Description |
-|-----------|-------------|
-| `stage2_core_stats.csv` | Overall core metrics statistics for the full dataset |
-| `stage2_modal_comparison.csv` | Key metrics comparison between text-only and multimodal requests |
-| `stage2_correlation_matrix.csv` | Full Pearson correlation matrix of core features |
+- 979,123 valid requests remain after cleaning.
+- Data retention rate is 97.91%.
+- The workload is almost evenly split between text-only and multimodal traffic:
+  489,817 text-only requests and 489,306 multimodal requests.
+- Average context length is 2,464.09 tokens, with a median of 1,107 tokens.
+- The trace spans about 7 days, with hourly arrivals ranging from 1,594 to 11,905 requests and a standard deviation of 2,333.96, confirming bursty traffic.
 
----
+### Stage 2. Latency, Energy, and Carbon Root-Cause Analysis
 
-## 4. Core Key Findings
-1.  Multimodal requests are the dominant driver of latency and carbon emissions in SME LMM clusters, with a 14.8x performance gap compared to text-only requests;
-2.  The number of images per request is the core root cause of performance degradation, with an almost linear positive correlation with latency and carbon emissions;
-3.  The default FCFS scheduling policy in mainstream frameworks cannot adapt to this heterogeneous workload, causing severe head-of-line blocking in resource-constrained SME clusters.
+`stage2step1.py` adds estimated latency, energy consumption, and carbon footprint to each cleaned request. `stage2step2.py` performs Pearson correlation analysis to identify the dominant drivers.
 
----
+Key outputs:
 
-## 5. Environment Requirements
-All code is written in Python 3.12+, with the following core dependencies:
+- `azure_lmm_trace_enhanced.csv.gz`
+- `stage2_core_stats.csv`
+- `stage2_modal_comparison.csv`
+- `stage2_correlation_matrix.csv`
+- `stage2_modal_carbon_boxplot.png`
+- `stage2_correlation_heatmap.png`
+
+Main findings:
+
+- Mean estimated latency across all requests is 4.7622 s.
+- Mean estimated carbon footprint is 0.03730 g CO2 per request.
+- Multimodal requests are the dominant source of system cost:
+  average latency is 8.9270 s versus 0.6017 s for text-only requests.
+- Multimodal requests emit 34.2162 kg CO2 in total, versus 2.3087 kg CO2 for text-only traffic over the trace.
+- `NumImages` is the strongest predictor of latency and carbon footprint, with Pearson correlation 0.9992.
+- `ContextTokens` is also important, but clearly weaker than image count, with correlation 0.8943.
+
+### Stage 3. Trace-Driven Scheduling Evaluation
+
+`stage3.py` evaluates a lightweight non-preemptive modality-aware priority scheduler against FCFS using the enhanced trace. Requests are classified into three classes:
+
+- Text-only: `NumImages == 0`
+- Light multimodal: `NumImages == 1`
+- Heavy multimodal: `NumImages >= 2`
+
+Key outputs:
+
+- `stage3_policy_summary.csv`
+- `stage3_ftl_by_type.csv`
+- `stage3_request_results.csv.gz`
+
+Main findings:
+
+- Average total latency drops from 1,591,291.84 s under FCFS to 356,640.25 s under modality-aware priority.
+- This corresponds to a 77.59% reduction in average total latency.
+- Average first-token latency (FTL) also drops by 77.59%.
+- P99 total latency improves only slightly, from 4,036,065.57 s to 3,976,676.57 s, showing that tail behavior remains constrained by heavy requests.
+- Text-only average FTL improves by 99.9993%.
+- Light multimodal average FTL improves by 95.4413%.
+- Heavy multimodal requests become slower, with average FTL increasing by 15.8469%, which exposes a fairness tradeoff that must be discussed explicitly in the thesis.
+
+## Repository Structure
+
+### Core scripts
+
+- `stage1.py`: preprocessing and workload characterization
+- `stage2step1.py`: latency, energy, and carbon estimation
+- `stage2step2.py`: correlation analysis and bottleneck identification
+- `stage3.py`: FCFS versus modality-aware scheduling evaluation
+
+### Data artifacts
+
+- `azure_lmm_trace_clean.csv.gz`: cleaned trace after Stage 1
+- `azure_lmm_trace_enhanced.csv.gz`: enhanced trace with Stage 2 metrics
+- `stage3_request_results.csv.gz`: per-request scheduling results for both policies
+
+### Tables and figures
+
+- `stage2_core_stats.csv`
+- `stage2_modal_comparison.csv`
+- `stage2_correlation_matrix.csv`
+- `stage3_policy_summary.csv`
+- `stage3_ftl_by_type.csv`
+- `01_modal_proportion.png`
+- `02_context_tokens_dist.png`
+- `03_num_images_dist.png`
+- `04_hourly_traffic.png`
+- `stage2_modal_carbon_boxplot.png`
+- `stage2_correlation_heatmap.png`
+
+## How To Reproduce
+
+Environment:
+
+- Python 3.12+
+- `pandas`
+- `numpy`
+- `matplotlib`
+- `seaborn`
+
+Install dependencies:
+
 ```bash
 pip install pandas numpy matplotlib seaborn scipy
+```
+
+Run order:
+
+```bash
+python3 stage1.py
+python3 stage2step1.py
+python3 stage2step2.py
+python3 stage3.py
+```
+
+## Important Reproducibility Note
+
+`stage1.py`, `stage2step1.py`, and `stage2step2.py` still contain machine-specific absolute paths. They reflect the environment used during the analysis and should be adjusted before rerunning on a different machine. `stage3.py` already uses repository-relative paths and is directly reproducible inside this repository.
+
+## Thesis-Level Takeaways
+
+- Multimodal heterogeneity is the main reason SME-scale LMM serving suffers from poor latency and elevated emissions.
+- Image count is the dominant bottleneck variable and is a strong basis for lightweight scheduling decisions.
+- A simple modality-aware scheduler can dramatically improve service for short requests.
+- The current priority policy improves average performance but shifts delay to heavy multimodal traffic, so the final thesis should treat fairness and starvation control as a design consideration rather than claim universal benefit.
+
