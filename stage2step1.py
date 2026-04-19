@@ -14,8 +14,6 @@ plt.switch_backend('Agg')  # Non-interactive backend for Mac compatibility
 
 print("✅ All libraries loaded successfully!")
 
-# ---------------------- 1. Path Configuration (MUST REPLACE) ----------------------
-# 🔧 ONLY CHANGE THIS PATH: Point to your Stage1 cleaned CSV.gz
 STAGE1_CLEAN_DATA_PATH = "/Users/jiangyutang/Desktop/TFM/azure_lmm_trace_clean.csv.gz"
 STAGE2_OUTPUT_PATH = "/Users/jiangyutang/Desktop/TFM/"
 
