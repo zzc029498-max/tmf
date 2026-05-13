@@ -1,4 +1,5 @@
 from collections import deque
+import os
 from pathlib import Path
 
 import numpy as np
@@ -7,10 +8,20 @@ import pandas as pd
 
 # ---------------------- 0. Configuration ----------------------
 ROOT_DIR = Path(__file__).resolve().parent
+MPLCONFIG_DIR = ROOT_DIR / ".matplotlib"
+MPLCONFIG_DIR.mkdir(exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_DIR))
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 INPUT_PATH = ROOT_DIR / "azure_lmm_trace_enhanced.csv.gz"
 SUMMARY_OUTPUT_PATH = ROOT_DIR / "stage3_policy_summary.csv"
 FTL_OUTPUT_PATH = ROOT_DIR / "stage3_ftl_by_type.csv"
 REQUEST_OUTPUT_PATH = ROOT_DIR / "stage3_request_results.csv.gz"
+LATENCY_FIGURE_PATH = ROOT_DIR / "stage3_policy_latency_comparison.png"
+FTL_FIGURE_PATH = ROOT_DIR / "stage3_ftl_by_type.png"
+WAIT_FIGURE_PATH = ROOT_DIR / "stage3_wait_by_type.png"
 
 # Priority-class threshold.
 # The prompt text omits the exact light/heavy boundary, so the default is:
@@ -25,6 +36,8 @@ GPU_THROUGHPUT = 2500  # tokens per second on NVIDIA A10
 
 pd.set_option("display.width", 160)
 pd.set_option("display.max_columns", 20)
+plt.switch_backend("Agg")
+sns.set_theme(style="whitegrid")
 
 
 # ---------------------- 1. Data Loading ----------------------
@@ -55,7 +68,10 @@ def load_trace(input_path: Path) -> pd.DataFrame:
         df["NumImages"].astype(float) * IMAGE_TOKEN_EQUIVALENT
     ) / GPU_THROUGHPUT
 
-    return df.sort_values(["arrival_time", "arrival_timestamp"]).reset_index(drop=True)
+    # Stable NumPy sort avoids a pandas 2.3 / Python 3.14 issue observed with
+    # sort_values on this environment.
+    sort_index = np.argsort(df["arrival_time"].to_numpy(dtype=float), kind="mergesort")
+    return df.iloc[sort_index].reset_index(drop=True)
 
 
 def classify_request_types(df: pd.DataFrame) -> pd.DataFrame:
@@ -211,8 +227,18 @@ def summarize_ftl_by_type(results: pd.DataFrame) -> pd.DataFrame:
     ftl_table["request_type"] = pd.Categorical(
         ftl_table["request_type"], categories=type_order, ordered=True
     )
+    policy_order = ["FCFS", "Modality-Aware Priority"]
+    ftl_table["policy"] = pd.Categorical(
+        ftl_table["policy"], categories=policy_order, ordered=True
+    )
 
-    return ftl_table.sort_values(["policy", "request_type"]).round(6)
+    sort_index = np.lexsort(
+        (
+            ftl_table["request_type"].cat.codes.to_numpy(),
+            ftl_table["policy"].cat.codes.to_numpy(),
+        )
+    )
+    return ftl_table.iloc[sort_index].reset_index(drop=True).round(6)
 
 
 def build_wide_request_export(results: pd.DataFrame) -> pd.DataFrame:
@@ -235,9 +261,9 @@ def build_wide_request_export(results: pd.DataFrame) -> pd.DataFrame:
     static = (
         results[base_columns]
         .drop_duplicates(subset=["request_id"])
-        .sort_values("request_id")
-        .reset_index(drop=True)
     )
+    sort_index = np.argsort(static["request_id"].to_numpy(dtype=int), kind="mergesort")
+    static = static.iloc[sort_index].reset_index(drop=True)
 
     policy_metrics = (
         results[
@@ -263,7 +289,85 @@ def build_wide_request_export(results: pd.DataFrame) -> pd.DataFrame:
     return static.merge(policy_metrics, on="request_id", how="left")
 
 
-# ---------------------- 4. Main Entry ----------------------
+# ---------------------- 4. Visualization ----------------------
+def plot_policy_summary(summary_table: pd.DataFrame) -> None:
+    """Plot overall latency and FTL comparison between policies."""
+    plot_df = summary_table.melt(
+        id_vars="policy",
+        value_vars=["avg_total_latency_s", "avg_ftl_s", "p99_total_latency_s"],
+        var_name="metric",
+        value_name="seconds",
+    )
+    metric_labels = {
+        "avg_total_latency_s": "Average Total Latency",
+        "avg_ftl_s": "Average FTL",
+        "p99_total_latency_s": "P99 Total Latency",
+    }
+    plot_df["metric"] = plot_df["metric"].map(metric_labels)
+
+    plt.figure(figsize=(11, 6))
+    ax = sns.barplot(data=plot_df, x="metric", y="seconds", hue="policy", palette="Set2")
+    ax.set_title("Stage 3 Policy Comparison", pad=16)
+    ax.set_xlabel("")
+    ax.set_ylabel("Seconds")
+    ax.tick_params(axis="x", rotation=8)
+    ax.legend(title="")
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt="%.0f", padding=3, fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(LATENCY_FIGURE_PATH, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def plot_ftl_by_type(ftl_table: pd.DataFrame) -> None:
+    """Plot average first-token latency by policy and request type."""
+    plt.figure(figsize=(10, 6))
+    ax = sns.barplot(
+        data=ftl_table,
+        x="request_type",
+        y="avg_ftl_s",
+        hue="policy",
+        palette="Set2",
+    )
+    ax.set_title("Average First-Token Latency by Request Type", pad=16)
+    ax.set_xlabel("")
+    ax.set_ylabel("Seconds")
+    ax.legend(title="")
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt="%.0f", padding=3, fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(FTL_FIGURE_PATH, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def plot_wait_by_type(ftl_table: pd.DataFrame) -> None:
+    """Plot average queueing delay by policy and request type."""
+    plt.figure(figsize=(10, 6))
+    ax = sns.barplot(
+        data=ftl_table,
+        x="request_type",
+        y="avg_wait_time_s",
+        hue="policy",
+        palette="Set2",
+    )
+    ax.set_title("Average Queueing Delay by Request Type", pad=16)
+    ax.set_xlabel("")
+    ax.set_ylabel("Seconds")
+    ax.legend(title="")
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt="%.0f", padding=3, fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(WAIT_FIGURE_PATH, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+# ---------------------- 5. Main Entry ----------------------
 def main() -> None:
     print("=== Stage 3: Trace-Driven Scheduling Evaluation ===")
     print(f"Loading enhanced trace from: {INPUT_PATH}")
@@ -286,6 +390,9 @@ def main() -> None:
     summary_table.to_csv(SUMMARY_OUTPUT_PATH, index=False)
     ftl_table.to_csv(FTL_OUTPUT_PATH, index=False)
     request_export.to_csv(REQUEST_OUTPUT_PATH, index=False, compression="gzip")
+    plot_policy_summary(summary_table)
+    plot_ftl_by_type(ftl_table)
+    plot_wait_by_type(ftl_table)
 
     print("\n=== Policy Comparison Summary ===")
     print(summary_table.to_string(index=False))
@@ -297,6 +404,9 @@ def main() -> None:
     print(f"Summary table: {SUMMARY_OUTPUT_PATH.relative_to(ROOT_DIR)}")
     print(f"FTL by type:   {FTL_OUTPUT_PATH.relative_to(ROOT_DIR)}")
     print(f"Per-request:   {REQUEST_OUTPUT_PATH.relative_to(ROOT_DIR)}")
+    print(f"Policy chart:  {LATENCY_FIGURE_PATH.relative_to(ROOT_DIR)}")
+    print(f"FTL chart:     {FTL_FIGURE_PATH.relative_to(ROOT_DIR)}")
+    print(f"Wait chart:    {WAIT_FIGURE_PATH.relative_to(ROOT_DIR)}")
 
 
 if __name__ == "__main__":

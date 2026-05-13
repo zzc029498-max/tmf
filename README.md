@@ -2,7 +2,10 @@
 Master's Final Thesis (TFM) repository at Universitat Rovira i Virgili (URV)
 
 - Author: Yutang Jiang
-- Research focus: low-latency and low-carbon multimodal LMM inference for SME-scale GPU clusters
+- Research focus: Optimization of 
+Low-Latency and Green Cloud 
+Services Based on Azure 2025 
+lmm Inference Traces
 - Current repository status: Stage 1, Stage 2, and Stage 3 analytical evaluation completed
 
 ## Project Summary
@@ -70,6 +73,9 @@ Key outputs:
 - `stage3_policy_summary.csv`
 - `stage3_ftl_by_type.csv`
 - `stage3_request_results.csv.gz`
+- `stage3_policy_latency_comparison.png`
+- `stage3_ftl_by_type.png`
+- `stage3_wait_by_type.png`
 
 Main findings:
 
@@ -103,6 +109,9 @@ Main findings:
 - `stage2_correlation_matrix.csv`
 - `stage3_policy_summary.csv`
 - `stage3_ftl_by_type.csv`
+- `stage3_policy_latency_comparison.png`
+- `stage3_ftl_by_type.png`
+- `stage3_wait_by_type.png`
 - `01_modal_proportion.png`
 - `02_context_tokens_dist.png`
 - `03_num_images_dist.png`
@@ -145,4 +154,3 @@ python3 stage3.py
 - Image count is the dominant bottleneck variable and is a strong basis for lightweight scheduling decisions.
 - A simple modality-aware scheduler can dramatically improve service for short requests.
 - The current priority policy improves average performance but shifts delay to heavy multimodal traffic, so the final thesis should treat fairness and starvation control as a design consideration rather than claim universal benefit.
-
